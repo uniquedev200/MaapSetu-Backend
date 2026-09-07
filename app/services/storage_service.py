@@ -78,7 +78,6 @@ class SupabaseStorageBackend(StorageBackend):
                 "SUPABASE_URL and SUPABASE_SERVICE_KEY are required when STORAGE_BACKEND=supabase"
             )
         from supabase import create_client
-        from supabase.storage import SyncStorageClient  # noqa: F401  (verify import path)
 
         self._client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
         self._bucket = settings.SUPABASE_STORAGE_BUCKET
