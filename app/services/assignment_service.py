@@ -82,8 +82,9 @@ class AssignmentService:
             return None
 
         # auto | lowest_workload : same-district officers, lowest active workload.
-        if not candidates and district:
-            # Fallback: any officer (district has none registered).
+        if not candidates:
+            # Fallback: any officer (district has none registered, or instrument
+            # has no district) so auto-assignment can still make progress.
             candidates = self.users.list_officers(roles=roles)
 
         if not candidates:
@@ -112,7 +113,7 @@ class AssignmentService:
         district = instrument.district
         roles = [entity_type] if entity_type else None
         district_candidates = self.users.list_officers(district=district, roles=roles)
-        fallback_candidates = ([] if district_candidates or not district
+        fallback_candidates = ([] if district_candidates
                                else self.users.list_officers(roles=roles))
 
         inspected: List[dict] = []
