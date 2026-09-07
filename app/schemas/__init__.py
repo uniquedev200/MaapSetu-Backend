@@ -1,0 +1,1 @@
+"""Pydantic schemas — input validation, output DTOs and frontend serializers."""

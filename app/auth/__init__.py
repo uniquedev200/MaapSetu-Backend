@@ -1,0 +1,1 @@
+"""Authentication package — password hashing, JWT issuance/validation, guards."""

@@ -1,0 +1,1 @@
+"""Service layer — business logic orchestrated by API endpoints."""

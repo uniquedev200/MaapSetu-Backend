@@ -1,0 +1,1 @@
+"""Blockchain module: certificate integrity anchoring via hash chains."""

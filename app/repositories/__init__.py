@@ -1,0 +1,1 @@
+"""Repository pattern — data access layer over SQLAlchemy sessions."""
