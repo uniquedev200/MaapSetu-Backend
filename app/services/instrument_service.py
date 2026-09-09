@@ -130,12 +130,22 @@ class InstrumentService:
         return instrument
 
     def delete(self, *, instrument: Instrument, user: User) -> None:
+        """Soft-delete (archive) an instrument.
+
+        The row, its passport timeline, certificates and blockchain blocks are
+        preserved forever for chain-of-custody. Only instruments without an
+        in-flight verification request can be archived; the archived flag
+        simply hides it from lists.
+        """
         self._assert_access(instrument, user)
-        if instrument.requests and any(r.status not in ("CANCELLED", "REJECTED", "CERTIFICATE_ISSUED") for r in instrument.requests):
-            raise ValidationError("Cannot delete an instrument with active verification requests.")
-        audit(self.db, user=user, action="DELETE", entity_type="instrument", entity_id=instrument.public_id,
-              details=f"Deleted instrument {instrument.public_id}")
-        self.repo.delete(instrument)
+        if instrument.requests and any(
+            r.status not in ("CANCELLED", "REJECTED", "CERTIFICATE_ISSUED") for r in instrument.requests
+        ):
+            raise ValidationError("Cannot archive an instrument with an active verification request.")
+        instrument.is_active = False
+        self.repo.save(instrument)
+        audit(self.db, user=user, action="ARCHIVE", entity_type="instrument", entity_id=instrument.public_id,
+              details=f"Archived instrument {instrument.public_id}")
 
     def list(
         self,

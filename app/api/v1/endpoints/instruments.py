@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 
 from app.api.deps import AppServices, get_services
 from app.auth.deps import get_current_user, require_business
-from app.core.response import paginated
+from app.core.exceptions import AuthorizationError
+from app.core.response import ok, paginated
 from app.models.user import User
 from app.schemas.instrument import ComplaintCreate, InstrumentCreate, InstrumentUpdate
 from app.schemas.serializers import instrument_detail, instrument_list_item
@@ -90,3 +91,32 @@ async def upload_instrument_photo(
         allowed=ALLOWED_IMAGE_TYPES, user=user,
     )
     return instrument_detail(services.instruments.attach_photo(public_id=instrument_id, path=path))
+
+
+@router.get("/{instrument_id}/passport", response_model=dict, summary="Digital instrument passport (timeline, health, verification summary)")
+def get_instrument_passport(
+    instrument_id: str,
+    user: User = Depends(get_current_user),
+    services: AppServices = Depends(get_services),
+) -> dict:
+    """Full instrument history: lifecycle timeline, health history and
+    verification summary. Available to the owning business, officers and
+    admins — chain-of-custody records are never destroyed."""
+    instrument = services.instruments.get_by_public_id(instrument_id)
+    if user.role not in ("ADMIN", "LMO", "GATC") and not (
+        user.role == "BUSINESS" and instrument.owner_id == user.id
+    ):
+        raise AuthorizationError("You do not have access to this instrument's passport.")
+    return ok("Instrument passport", services.passport.build_passport(instrument))
+
+
+@router.delete("/{instrument_id}", status_code=status.HTTP_200_OK, response_model=dict,
+               summary="Archive an instrument (soft delete, history preserved)")
+def archive_instrument(
+    instrument_id: str,
+    user: User = Depends(get_current_user),
+    services: AppServices = Depends(get_services),
+) -> dict:
+    instrument = services.instruments.get_by_public_id(instrument_id, current_user=user)
+    services.instruments.delete(instrument=instrument, user=user)
+    return ok("Instrument archived", {"id": instrument.public_id})

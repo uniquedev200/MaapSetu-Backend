@@ -134,6 +134,29 @@ def _seed_demo_users() -> None:
         )
 
 
+def _ensure_columns(engine) -> None:
+    """Idempotent column migrations for pre-existing tables.
+
+    ``Base.metadata.create_all`` only creates missing *tables*, so new columns
+    on existing tables must be added explicitly (Postgres: ``IF NOT EXISTS``;
+    SQLite: tolerate the duplicate-column error).
+    """
+    from sqlalchemy import text
+
+    migrations = [
+        ("instruments", "is_active BOOLEAN NOT NULL DEFAULT TRUE"),
+    ]
+    with engine.begin() as conn:
+        for table, column in migrations:
+            if conn.dialect.name == "postgresql":
+                conn.execute(text(f'ALTER TABLE metricert.{table} ADD COLUMN IF NOT EXISTS {column}'))
+            else:
+                try:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column}"))
+                except Exception:
+                    pass
+
+
 def _on_startup() -> None:
     # Ensure our app schema exists before create_all (PostgreSQL stacks).
     from sqlalchemy import text
@@ -141,6 +164,7 @@ def _on_startup() -> None:
     with engine.begin() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS metricert"))
     Base.metadata.create_all(bind=engine)
+    _ensure_columns(engine)
     if settings.SEED_ON_STARTUP:
         _seed_admin()
         if settings.SEED_DEMO_USERS:

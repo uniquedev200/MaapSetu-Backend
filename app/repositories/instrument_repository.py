@@ -40,7 +40,7 @@ class InstrumentRepository(BaseRepository[Instrument]):
         stmt = select(Instrument)
         count_stmt = select(func.count()).select_from(Instrument)
 
-        conditions: List[Any] = []
+        conditions: List[Any] = [Instrument.is_active.is_(True)]
         if owner_id is not None:
             conditions.append(Instrument.owner_id == owner_id)
         if officer_id is not None:

@@ -3,7 +3,7 @@
 from datetime import date
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Date, Float, Integer, String, Text, ForeignKey
+from sqlalchemy import Boolean, Date, Float, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import InstrumentStatus
@@ -42,6 +42,10 @@ class Instrument(Base, PublicIdMixin, TimestampMixin):
         String(32), default=InstrumentStatus.REGISTERED.value, index=True, nullable=False
     )
     verification_frequency_months: Mapped[int] = mapped_column(Integer, default=12, nullable=False)
+
+    # Soft-delete / archive flag (chain-of-custody: records, passports and
+    # blockchain blocks must survive forever — deletion only hides the row).
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True, nullable=False)
 
     # Cache of the latest computed health score (0-100) for cheap reads.
     health_score: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
