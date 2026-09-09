@@ -23,6 +23,7 @@ from app.services.audit_service import audit
 from app.services.certificate_service import CertificateService
 from app.services.health_score_service import HealthScoreService
 from app.services.inspection_service import InspectionService
+from app.services.notification_service import notify, notify_admins
 from app.services.passport_service import PassportService
 from app.utils.id_generator import request_id
 
@@ -100,6 +101,15 @@ class VerificationService:
             metadata={"request_id": req.public_id, "type": req.type_display},
             actor=user,
         )
+        notify_admins(
+            self.db,
+            title="New verification request",
+            message=f"{user.display_name} submitted a {req.type_display} ({req.public_id}).",
+            type="REQUEST_SUBMITTED",
+            link=f"/applications/{req.public_id}",
+            payload={"request_id": req.public_id},
+            actor_id=user.id,
+        )
         return req
 
     def approve_and_assign(self, req: VerificationRequest, admin: User,
@@ -141,6 +151,31 @@ class VerificationService:
         )
         audit(self.db, user=admin, action="ASSIGN", entity_type="verification_request",
               entity_id=req.public_id, details=f"Assigned request to {officer.display_name} ({entity})")
+
+        next_step_hint = {
+            "LMO": "Please schedule the field inspection.",
+            "GATC": "Please schedule the laboratory test.",
+        }.get(entity_type or officer.role, "Please review and schedule the inspection.")
+        notify(
+            self.db,
+            user_id=req.applicant_id,
+            title="Request approved",
+            message=f"Your request {req.public_id} was approved and is being handled by {officer.display_name}.",
+            type="REQUEST_APPROVED",
+            link=f"/applications/{req.public_id}",
+            payload={"request_id": req.public_id},
+            actor_id=admin.id,
+        )
+        notify(
+            self.db,
+            user_id=officer.id,
+            title="New request assigned",
+            message=f"Verification request {req.public_id} (instrument {req.instrument.serial_number}) was assigned to you. {next_step_hint}",
+            type="REQUEST_ASSIGNED",
+            link=f"/applications/{req.public_id}",
+            payload={"request_id": req.public_id},
+            actor_id=admin.id,
+        )
         return req
 
     def assign_manual(self, req: VerificationRequest, admin: User, officer_id: int) -> VerificationRequest:
@@ -157,6 +192,16 @@ class VerificationService:
         self.db.add(req)
         self.db.commit()
         self.db.refresh(req)
+        notify(
+            self.db,
+            user_id=officer.id,
+            title="New request assigned",
+            message=f"Verification request {req.public_id} (instrument {req.instrument.serial_number}) was assigned to you.",
+            type="REQUEST_ASSIGNED",
+            link=f"/applications/{req.public_id}",
+            payload={"request_id": req.public_id},
+            actor_id=admin.id,
+        )
         return req
 
     def schedule(self, req: VerificationRequest, officer: User, scheduled_date, scheduled_location=None) -> VerificationRequest:
@@ -185,6 +230,17 @@ class VerificationService:
             metadata={"request_id": req.public_id, "date": scheduled_date.isoformat()},
             actor=officer,
         )
+        notify(
+            self.db,
+            user_id=req.applicant_id,
+            title="Inspection scheduled",
+            message=f"Inspection for request {req.public_id} is scheduled for {scheduled_date.isoformat()}"
+                    f" at {scheduled_location or 'installation site'}.",
+            type="INSPECTION_SCHEDULED",
+            link=f"/applications/{req.public_id}",
+            payload={"request_id": req.public_id, "date": scheduled_date.isoformat()},
+            actor_id=officer.id,
+        )
         return req
 
     def inspect(self, req: VerificationRequest, user: User, findings: InspectionFindings) -> dict:
@@ -212,6 +268,16 @@ class VerificationService:
         self.db.add_all([req, req.instrument])
         self.db.commit()
         self.health.recalculate(req.instrument, reason="Failed verification")
+        notify(
+            self.db,
+            user_id=req.applicant_id,
+            title="Verification result",
+            message=f"Request {req.public_id} did not pass the verification inspection: {req.rejection_reason}",
+            type="REQUEST_REJECTED",
+            link=f"/applications/{req.public_id}",
+            payload={"request_id": req.public_id, "reason": req.rejection_reason},
+            actor_id=user.id,
+        )
         return {"passed": False, "inspection": inspection.public_id, "status": req.status,
                 "reason": req.rejection_reason}
 
@@ -224,6 +290,16 @@ class VerificationService:
         self.db.add(req)
         self.db.commit()
         self.db.refresh(req)
+        notify(
+            self.db,
+            user_id=req.applicant_id,
+            title="Request cancelled",
+            message=f"Verification request {req.public_id} was cancelled.",
+            type="REQUEST_CANCELLED",
+            link=f"/applications/{req.public_id}",
+            payload={"request_id": req.public_id},
+            actor_id=user.id,
+        )
         return req
 
     # ------------------------------------------------------------------

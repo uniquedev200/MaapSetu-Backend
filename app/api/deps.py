@@ -14,6 +14,7 @@ from app.services.dashboard_service import DashboardService
 from app.services.health_score_service import HealthScoreService
 from app.services.inspection_service import InspectionService
 from app.services.instrument_service import InstrumentService
+from app.services.notification_service import NotificationService
 from app.services.passport_service import PassportService
 from app.services.upload_service import UploadService
 from app.services.user_service import UserService
@@ -35,6 +36,7 @@ class AppServices:
             "auth": lambda: AuthService(self.db),
             "users": lambda: UserService(self.db),
             "instruments": lambda: InstrumentService(self.db),
+            "notifications": lambda: NotificationService(self.db),
             "verifications": lambda: VerificationService(self.db),
             "inspections": lambda: InspectionService(self.db),
             "certificates": lambda: CertificateService(self.db),

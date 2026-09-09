@@ -17,6 +17,7 @@ from app.models.user import User
 from app.models.verification_request import VerificationRequest
 from app.repositories.certificate_repository import CertificateRepository
 from app.services.audit_service import audit
+from app.services.notification_service import notify
 from app.services.passport_service import PassportService
 from app.services.pdf_service import pdf_service
 from app.services.qr_service import qr_service
@@ -115,6 +116,18 @@ class CertificateService:
         )
         audit(self.db, user=inspector, action="CERTIFICATE", entity_type="certificate", entity_id=cert_public_id,
               details=f"Issued certificate {cert_number} anchored on block #{block.index}")
+
+        notify(
+            self.db,
+            user_id=request.applicant_id,
+            title="Certificate issued",
+            message=f"Your certificate {cert_number} for {instrument.name} is ready (block #{block.index}).",
+            type="CERTIFICATE_ISSUED",
+            link=f"/certificates/{cert_public_id}",
+            payload={"certificate_id": cert_public_id, "certificate_number": cert_number,
+                     "block_index": block.index},
+            actor_id=inspector.id,
+        )
 
         self.db.refresh(cert)
         return cert

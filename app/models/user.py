@@ -50,6 +50,12 @@ class User(Base, PublicIdMixin, TimestampMixin):
     passports: Mapped[List["PassportEvent"]] = relationship(  # noqa: F821
         back_populates="actor", foreign_keys="PassportEvent.actor_id"
     )
+    notifications: Mapped[List["Notification"]] = relationship(  # noqa: F821
+        back_populates="user",
+        foreign_keys="Notification.user_id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     @property
     def display_name(self) -> str:

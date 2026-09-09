@@ -253,6 +253,20 @@ def business_profile(user: User) -> Dict[str, Any]:
     }
 
 
+def notification_item(notif: "Notification") -> Dict[str, Any]:
+    """Shape consumed by the frontend notification feed."""
+    return {
+        "id": notif.id,
+        "title": notif.title,
+        "message": notif.message,
+        "type": notif.type,
+        "link": notif.link,
+        "payload": notif.payload or {},
+        "is_read": notif.is_read,
+        "created_at": iso_date(notif.created_at),
+    }
+
+
 def audit_log_item(log: Any) -> Dict[str, Any]:
     return {
         "id": log.id,

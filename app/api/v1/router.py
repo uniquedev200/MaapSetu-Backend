@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     dashboard,
     inspections,
     instruments,
+    notifications,
     public,
     settings,
     uploads,
@@ -24,6 +25,7 @@ api_router.include_router(auth.router)
 api_router.include_router(assistant.router)
 api_router.include_router(users.router)
 api_router.include_router(instruments.router)
+api_router.include_router(notifications.router)
 api_router.include_router(verification.router)
 api_router.include_router(inspections.router)
 api_router.include_router(certificates.router)
