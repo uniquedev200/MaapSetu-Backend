@@ -83,6 +83,13 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str = ""
     SUPABASE_STORAGE_BUCKET: str = "metricert"
 
+    # --- AI assistant ---------------------------------------------------
+    # Optional GROQ API key for the BUSINESS onboarding helper. When unset,
+    # /api/v1/assistant/chat answers from a local knowledge base instead.
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_API_BASE: str = "https://api.groq.com/openai/v1"
+
     # --- Blockchain -----------------------------------------------------
     BLOCKCHAIN_IMPLEMENTATION: str = "embedded"  # embedded | hyperledger | polygon | ethereum
     BLOCKCHAIN_PROOF_OF_WORK: bool = False

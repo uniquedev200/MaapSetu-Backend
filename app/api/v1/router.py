@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    assistant,
     audit_logs,
     auth,
     business,
@@ -20,6 +21,7 @@ from app.api.v1.endpoints import (
 api_router = APIRouter()
 
 api_router.include_router(auth.router)
+api_router.include_router(assistant.router)
 api_router.include_router(users.router)
 api_router.include_router(instruments.router)
 api_router.include_router(verification.router)
