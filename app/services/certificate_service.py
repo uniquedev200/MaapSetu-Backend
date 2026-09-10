@@ -5,6 +5,7 @@ from datetime import date
 from types import SimpleNamespace
 from typing import Optional
 
+import httpx
 from sqlalchemy.orm import Session
 
 from app.blockchain.service import BlockchainService
@@ -163,13 +164,52 @@ class CertificateService:
         )
 
     def verify(self, cert: Certificate, *, full: bool = False) -> dict:
-        """Blockchain verification for a single certificate."""
+        """Blockchain verification for a single certificate.
+
+        Re-hashes the *currently served* PDF bytes from storage and compares
+        them against both the issuance hash and the anchored blockchain hash —
+        so a storage-object tamper (file swapped without a DB write) is caught
+        in the same way as a record edit.
+        """
+        live_hash = self._current_file_hash(cert)
         result = self.blockchain.validate_certificate(cert.public_id, cert.certificate_hash or "")
+        result["fileHash"] = live_hash
+        if cert.certificate_hash and live_hash and live_hash != cert.certificate_hash:
+            result = {
+                **result,
+                "isAuthentic": False,
+                "message": "Tampered Certificate: the served file bytes differ from the issuance hash",
+            }
         if full:
             from app.schemas.serializers import certificate_list_item
 
             result["certificate"] = certificate_list_item(cert)
         return result
+
+    @staticmethod
+    def _current_file_hash(cert: Certificate) -> Optional[str]:
+        """SHA-256 of the PDF bytes currently served for ``cert.pdf_url``.
+
+        Returns ``None`` when the artefact cannot be fetched (storage down /
+        missing row) — the DB-vs-anchor check then speaks on its own.
+        """
+        url = cert.pdf_url
+        if not url:
+            return None
+        try:
+            if url.startswith(("http://", "https://")):
+                response = httpx.get(url, timeout=15, follow_redirects=True)
+                if response.status_code != 200:
+                    return None
+                data = response.content
+            else:
+                rel = url.split("/public/file/", 1)[-1] if "/public/file/" in url else url.lstrip("/")
+                from app.services.storage_service import storage_service
+
+                data = storage_service.read(rel)
+        except Exception:
+            return None
+        return hashlib.sha256(data).hexdigest()
 
     def simulate_tamper(self, cert: Certificate) -> Certificate:
         """Simulate post-issuance tampering for the demo.
